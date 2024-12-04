@@ -10,6 +10,7 @@ Node* GetExpressionGraph(char* s, int* p)
     Node* val = GetE(s, p);
     if (s[*p] != '$')
     {
+        fprintf(stderr, "\n\tSYMBOL: %c\n",s[*p]);
         SyntaxError();
     }
     (*p)++;
@@ -54,14 +55,56 @@ Node* GetT(char* s, int* p)
 
 Node* GetU(char* s, int* p)
 {
-    Node* val = GetP(s, p);
+    Node* val = GetL(s, p);
     if (s[*p] == '^')
     {
         (*p)++;
-        Node* val_2 = GetP(s, p);
+        Node* val_2 = GetL(s, p);
         val = Make_OP_NODE(POW, val, val_2);
     }
     return val;
+}
+
+Node* GetL(char* s, int* p)
+{
+    if (s[*p] == 'l')
+    {
+        (*p) += 2;
+        Node* val_1 = GetE(s, p);
+        (*p) +=2;
+        Node* val_2 = GetE(s, p);
+        (*p) +=1;
+
+        return Make_OP_NODE(LOG, val_1, val_2);
+    }
+    else if(s[*p] == 's')
+    {
+        (*p) += 2;
+        Node* val_1 = GetE(s, p);
+        (*p) += 1;
+
+        return Make_OP_NODE(SIN, val_1, NULL);
+    }
+    else if(s[*p] == 'c')
+    {
+        (*p) += 2;
+        Node* val_1 = GetE(s, p);
+        (*p) += 1;
+
+        return Make_OP_NODE(COS, val_1, NULL);
+    }
+    else if(s[*p] == 't')
+    {
+        (*p) += 2;
+        Node* val_1 = GetE(s, p);
+        (*p) += 1;
+
+        return Make_OP_NODE(TAN, val_1, NULL);
+    }
+    else
+    {
+        return GetP(s, p);
+    }
 }
 
 Node* GetP(char* s, int* p)

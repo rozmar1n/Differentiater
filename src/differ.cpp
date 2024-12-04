@@ -313,7 +313,7 @@ void TypeOperationNode(Node* node, FILE* newTeX)
         if (*(double*)(node->child_left->data) - e < 0.001)
         {
             fprintf(newTeX, "\\ln{");
-            PrintfNodeToTeX(node->child_left, newTeX);
+            PrintfNodeToTeX(node->child_right, newTeX);
             fprintf(newTeX, "}");
         }
         else
@@ -324,6 +324,24 @@ void TypeOperationNode(Node* node, FILE* newTeX)
             PrintfNodeToTeX(node->child_right, newTeX);
             fprintf(newTeX, "}");
         }   
+    }
+    if(*(int*)(node->data) == SIN)
+    {
+        fprintf(newTeX, "\\sin(");
+        PrintfNodeToTeX(node->child_left, newTeX);
+        fprintf(newTeX, ")");
+    }
+    if(*(int*)(node->data) == COS)
+    {
+        fprintf(newTeX, "\\cos(");
+        PrintfNodeToTeX(node->child_left, newTeX);
+        fprintf(newTeX, ")");
+    }
+    if(*(int*)(node->data) == TAN)
+    {
+        fprintf(newTeX, "\\tg(");
+        PrintfNodeToTeX(node->child_left, newTeX);
+        fprintf(newTeX, ")");
     }
 }
 
@@ -359,17 +377,14 @@ Node* DiffNode (Node* node)
     {
     case SUM:
         return Make_OP_NODE(SUM, DiffNode(node->child_left), DiffNode(node->child_right));
-        break;
     
     case SUB:
         return Make_OP_NODE(SUB, DiffNode(node->child_left), DiffNode(node->child_right));
-        break;
     
     case MUL: {
         Node* node_1 = Make_OP_NODE(MUL, DiffNode(node->child_left), CopyNode(node->child_right));
         Node* node_2 = Make_OP_NODE(MUL, CopyNode(node->child_left), DiffNode(node->child_right));
         return Make_OP_NODE(SUM, node_1, node_2);
-        break;
     }
 
     case DIV: {
@@ -377,7 +392,6 @@ Node* DiffNode (Node* node)
         Node* node_2 = Make_OP_NODE(MUL, CopyNode(node->child_left), DiffNode(node->child_right));
         Node* node_3 = Make_OP_NODE(POW, CopyNode(node->child_right), MAKE_NUM_NODE(2));
         return Make_OP_NODE(DIV, Make_OP_NODE(SUB, node_1, node_2), node_3);
-        break;
     }
 
     case LOG: {
@@ -389,13 +403,22 @@ Node* DiffNode (Node* node)
         Node* node_3 = Make_OP_NODE(POW, Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)), 
                                          MAKE_NUM_NODE(2));    
         return Make_OP_NODE(DIV, Make_OP_NODE(SUB, node_1, node_2), node_3);                                
-        break;  
     }
 
     case POW: {
         Node* new_deriv = Make_OP_NODE(MUL, CopyNode(node->child_right), Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)));
         return Make_OP_NODE(MUL, CopyNode(node), DiffNode(new_deriv));
-        break;
+    }
+
+    case SIN: {
+        return Make_OP_NODE(MUL, Make_OP_NODE(COS, CopyNode(node->child_left), NULL), DiffNode(node->child_left));
+    }
+
+    case COS: {
+        return Make_OP_NODE(MUL, MAKE_NUM_NODE(-1),  Make_OP_NODE(MUL, Make_OP_NODE(SIN, CopyNode(node->child_left), NULL), DiffNode(node->child_left)));
+    }
+    case TAN: {
+        return DiffNode(Make_OP_NODE(DIV, Make_OP_NODE(SIN, node->child_left, NULL), Make_OP_NODE(COS, node->child_left, NULL)));
     }
 
     default:
@@ -414,7 +437,7 @@ size_t CleanNode (Node** node)
     while(go)
     {
         go = 0;
-        go = DeleteSomeNodes(node);
+        go += DeleteSomeNodes(node);
         go += MakeTreeSimpler(node);
         MakeLaTeXTree(*node, &steps);
     }
@@ -523,8 +546,8 @@ Node* AnalyzeNode (Node* node, int* result)
             }
         case LOG:
             {
-                if ((node->child_left->node_type == NUM) && 
-                    (node->child_right->node_type == NUM) &&
+                if ((node->child_left->node_type == NUM || node->child_left->node_type == VAR) && 
+                    (node->child_right->node_type == NUM || node->child_right->node_type == VAR) &&
                     fabs(*(double*)(node->child_left->data) - *(double*)(node->child_right->data)) < 0.0001)
                 {
                     DeleteTree(node);

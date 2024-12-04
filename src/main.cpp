@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    char s[] = {"x^2+2*x*85-32*(x+95*x-5)$"};
+    char s[] = {"x^2+2*x*85+s(x^l(2.718281828)(x))$"};
     int p = 0;
 
     size_t nPic =0;
@@ -16,6 +16,8 @@ int main(void)
     TreeDump(derivative, &nPic);
 
     CleanNode(&derivative);
+    nPic += 4;
+    TreeDump(derivative, &nPic);
 
     DeleteTree(expression);
     DeleteTree(derivative);

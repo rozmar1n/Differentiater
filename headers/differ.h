@@ -28,7 +28,10 @@ enum Operations
     MUL = 3, 
     DIV = 4,
     POW = 5,
-    LOG = 6
+    LOG = 6,
+    SIN = 7,
+    COS = 8,
+    TAN = 9
 };
 
 struct Node
@@ -63,4 +66,4 @@ int      MakeTreeSimpler(Node** node);
 Node*    AnalyzeNode    (Node* node, int* result);
 Node*    CalcNode       (Node* node, int* result);
           
-#endif //DIFFER_H
+#endif /*DIFFER_H*/
