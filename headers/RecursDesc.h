@@ -3,7 +3,7 @@
 
 #include <cstdio>
 #include <cassert>
-#include <cmath>
+#include <math.h>
 #include "../headers/differ.h"
 
 Node* GetExpressionGraph(char* s, int* p);

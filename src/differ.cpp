@@ -1,4 +1,19 @@
 #include "../headers/differ.h"
+//TODO: заменить дефайн на функцию
+#define MAKE_TEX_NODE(node, newTeX)              \
+    if (newTeX) \
+    {\
+        fprintf(newTeX, "\\begin{center}\n");    \
+        fprintf(newTeX, "$");                    \
+        PrintfNodeToTeX(node, newTeX);           \
+        fprintf(newTeX, "$");                    \
+        fprintf(newTeX, "\n\\end{center}\n");    \
+        fprintf(newTeX, "\n\n HELLO WORLD HELLO WORLD HELLO WORLD!!!");\
+    }
+    
+
+    //TODO: сделать для разных нод разные структуры 
+    //TODO: как хранить функции для работы с операторами.. Вместо енама сделать массив 
 
 
 
@@ -7,13 +22,6 @@ void* CallocDouble(const double var)
     double* var_ptr = (double*)calloc(1, sizeof(double));
     *(var_ptr) = var;
     return (void*)var_ptr;
-}
-
-void* CallocString(const char* operation)
-{
-    char* str_ptr = (char*)calloc(MaxOperationSize, sizeof(char));
-    stpcpy(str_ptr, operation);
-    return (void*)str_ptr;
 }
 
 void* CallocInt(const int operation)
@@ -46,7 +54,7 @@ void DeleteTree(Node* Tree_root)
         DeleteTree(Tree_root->child_right);
     }
 
-    if(Tree_root->node_type != VAR) 
+    if(Tree_root->node_type != t_VAR) 
         free(Tree_root->data);
 
     free(Tree_root);
@@ -110,19 +118,19 @@ void  MakeGraphExprNode (Node* node, FILE* newGraph)
         return;
     }
     
-    if (node->node_type == OP)
+    if (node->node_type == t_OP)
     {
         fprintf(newGraph, "node%p [shape=Mrecord; label = \" {%p"
                       "| data = %d | left = %p | right = %p }\"];\n\t", 
                        node, node, *(int*)(node->data), node->child_left, node->child_right);
     }
-    if (node->node_type == VAR)
+    if (node->node_type == t_VAR)
     {
         fprintf(newGraph, "node%p [shape=Mrecord; label = \" {%p"
                       "| data = X | left = %p | right = %p }\"];\n\t", 
                        node, node, node->child_left, node->child_right);
     }
-    if (node->node_type == NUM)
+    if (node->node_type == t_NUM)
     {
         fprintf(newGraph, "node%p [shape=Mrecord; label = \" {%p"
                       "| data = %lg | left = %p | right = %p }\"];\n\t", 
@@ -148,9 +156,9 @@ void MakeLaTeXTree (Node* Tree_root, size_t* nPdf)
     FILE* newTeX = fopen(TexName, "w");
     PrintPreamble(newTeX);
     
-    fprintf(newTeX, "\\begin{equation} \n");
-    PrintfNodeToTeX(Tree_root, newTeX);
-    fprintf(newTeX, "\n\\end{equation}\n");
+    
+    
+    MAKE_TEX_NODE(Tree_root, newTeX);
     fprintf(newTeX, "\\end{document}\n");
     fclose(newTeX);
     char buffer[512] = {'\0'};
@@ -246,21 +254,35 @@ void PrintfNodeToTeX (Node* node, FILE* newTeX)
 {
     switch (node->node_type)
     {
-    case OP:
+    case t_OP:
         TypeOperationNode(node, newTeX);
         break;
     
-    case NUM:
-        fprintf(newTeX, "%lg", *((double*)(node->data)) );
+    case t_NUM:
+        
+        if (fabs(*((double*)(node->data)) - e) < 0.01)
+        {
+            fprintf(newTeX, "e");
+        }
+        else
+        {
+            if (*((double*)(node->data)) < 0)
+            {
+                fprintf(newTeX, "(%lg)", *((double*)(node->data)));
+            }
+            else
+                fprintf(newTeX, "%lg", *((double*)(node->data)));
+        }
         break;
 
-    case VAR:
+    case t_VAR:
         fprintf(newTeX, "X");
         break;
 
     default:
         break;
     }
+    
 }
 
 void TypeOperationNode(Node* node, FILE* newTeX)
@@ -279,9 +301,18 @@ void TypeOperationNode(Node* node, FILE* newTeX)
     }
     if (*(int*)(node->data) == MUL)
     {
-        PrintfNodeToTeX(node->child_left, newTeX);
+        if((node->child_left->node_type == t_OP) && *(int*)(node->child_left->data) < 3)
+        {
+            fprintf(newTeX, "(");
+            PrintfNodeToTeX(node->child_left, newTeX);
+            fprintf(newTeX, ")");
+        }
+        else
+        {
+            PrintfNodeToTeX(node->child_left, newTeX);
+        }
         fprintf(newTeX, " \\cdot ");
-        if((node->child_right->node_type == OP) && *(int*)(node->child_right->data) < 3)
+        if((node->child_right->node_type == t_OP) && *(int*)(node->child_right->data) < 3)
         {
             fprintf(newTeX, "(");
             PrintfNodeToTeX(node->child_right, newTeX);
@@ -303,27 +334,72 @@ void TypeOperationNode(Node* node, FILE* newTeX)
     }
     if (*(int*)(node->data) == POW)
     {
-        PrintfNodeToTeX(node->child_left, newTeX);
-        fprintf(newTeX, " ^{ ");
-        PrintfNodeToTeX(node->child_right, newTeX);
-        fprintf(newTeX, " }");
-    }
-    if (*(int*)(node->data) == LOG)
-    {
-        if (*(double*)(node->child_left->data) - e < 0.001)
+        if (node->child_right->node_type == t_NUM && *(double*)(node->child_right->data) - 0.5 <= 0.001)
         {
-            fprintf(newTeX, "\\ln{");
-            PrintfNodeToTeX(node->child_right, newTeX);
+            fprintf(newTeX, "\\sqrt{");
+            PrintfNodeToTeX(node->child_left, newTeX);
             fprintf(newTeX, "}");
         }
         else
         {
-            fprintf(newTeX, "\\log_{");
-            PrintfNodeToTeX(node->child_left, newTeX);
-            fprintf(newTeX, "}{");
-            PrintfNodeToTeX(node->child_right, newTeX);
-            fprintf(newTeX, "}");
-        }   
+            if ((node->child_left->node_type == t_OP) && *(int*)(node->child_left->data) != POW)
+            {
+                fprintf(newTeX, "(");
+                PrintfNodeToTeX(node->child_left, newTeX);
+                fprintf(newTeX, ")");
+                fprintf(newTeX, " ^{ ");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, " }");
+            }
+            else
+            {
+                PrintfNodeToTeX(node->child_left, newTeX);
+                fprintf(newTeX, " ^{ ");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, " }");
+            }
+        }
+    }
+    if (*(int*)(node->data) == LOG)
+    {
+        if ((node->child_right->node_type == t_OP) && *(int*)(node->child_right->data) != LOG)
+        {
+            if (*(double*)(node->child_left->data) - e < 0.001)
+            {
+                fprintf(newTeX, "\\ln{");
+                fprintf(newTeX, "(");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, ")");
+                fprintf(newTeX, "}");
+            }
+            else
+            {
+                fprintf(newTeX, "\\log_{");
+                PrintfNodeToTeX(node->child_left, newTeX);
+                fprintf(newTeX, "}{");
+                fprintf(newTeX, "(");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, ")");
+                fprintf(newTeX, "}");
+            }
+        }
+        else
+        {    
+            if (*(double*)(node->child_left->data) - e < 0.001)
+            {
+                fprintf(newTeX, "\\ln{");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, "}");
+            }
+            else
+            {
+                fprintf(newTeX, "\\log_{");
+                PrintfNodeToTeX(node->child_left, newTeX);
+                fprintf(newTeX, "}{");
+                PrintfNodeToTeX(node->child_right, newTeX);
+                fprintf(newTeX, "}");
+            }   
+        }
     }
     if(*(int*)(node->data) == SIN)
     {
@@ -349,15 +425,15 @@ Node* CopyNode (const Node* node)
 {
     Node* new_node;
     
-    if (node->node_type == NUM)
+    if (node->node_type == t_NUM)
     {
         new_node = MAKE_NUM_NODE(*(double*)(node->data));
     }
-    if (node->node_type == OP)
+    if (node->node_type == t_OP)
     {
-        new_node = Make_OP_NODE(*(int*)(node->data), NULL, NULL);
+        new_node = MAKE_OP_NODE(*(int*)(node->data), NULL, NULL);
     }
-    if (node->node_type == VAR)
+    if (node->node_type == t_VAR)
     {
         new_node = Make_VAR_NODE;
     }
@@ -366,68 +442,6 @@ Node* CopyNode (const Node* node)
     if(node->child_right) new_node->child_right = CopyNode(node->child_right);
     
     return new_node;
-}
-
-Node* DiffNode (Node* node)
-{
-    if (node->node_type == NUM)  return MAKE_NUM_NODE(0);
-    if (node->node_type == VAR) return MAKE_NUM_NODE(1);
-    
-    if (node->node_type == OP) switch (*(int*)(node->data))
-    {
-    case SUM:
-        return Make_OP_NODE(SUM, DiffNode(node->child_left), DiffNode(node->child_right));
-    
-    case SUB:
-        return Make_OP_NODE(SUB, DiffNode(node->child_left), DiffNode(node->child_right));
-    
-    case MUL: {
-        Node* node_1 = Make_OP_NODE(MUL, DiffNode(node->child_left), CopyNode(node->child_right));
-        Node* node_2 = Make_OP_NODE(MUL, CopyNode(node->child_left), DiffNode(node->child_right));
-        return Make_OP_NODE(SUM, node_1, node_2);
-    }
-
-    case DIV: {
-        Node* node_1 = Make_OP_NODE(MUL, DiffNode(node->child_left), CopyNode(node->child_right));
-        Node* node_2 = Make_OP_NODE(MUL, CopyNode(node->child_left), DiffNode(node->child_right));
-        Node* node_3 = Make_OP_NODE(POW, CopyNode(node->child_right), MAKE_NUM_NODE(2));
-        return Make_OP_NODE(DIV, Make_OP_NODE(SUB, node_1, node_2), node_3);
-    }
-
-    case LOG: {
-        Node* node_1 = Make_OP_NODE(MUL, Make_OP_NODE(DIV, DiffNode(node->child_right), CopyNode(node->child_right)), 
-                                         Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)));
-        
-        Node* node_2 = Make_OP_NODE(MUL, Make_OP_NODE(DIV, DiffNode(node->child_left), CopyNode(node->child_left)), 
-                                         Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_right)));
-        Node* node_3 = Make_OP_NODE(POW, Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)), 
-                                         MAKE_NUM_NODE(2));    
-        return Make_OP_NODE(DIV, Make_OP_NODE(SUB, node_1, node_2), node_3);                                
-    }
-
-    case POW: {
-        Node* new_deriv = Make_OP_NODE(MUL, CopyNode(node->child_right), Make_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)));
-        return Make_OP_NODE(MUL, CopyNode(node), DiffNode(new_deriv));
-    }
-
-    case SIN: {
-        return Make_OP_NODE(MUL, Make_OP_NODE(COS, CopyNode(node->child_left), NULL), DiffNode(node->child_left));
-    }
-
-    case COS: {
-        return Make_OP_NODE(MUL, MAKE_NUM_NODE(-1),  Make_OP_NODE(MUL, Make_OP_NODE(SIN, CopyNode(node->child_left), NULL), DiffNode(node->child_left)));
-    }
-    case TAN: {
-        return DiffNode(Make_OP_NODE(DIV, Make_OP_NODE(SIN, node->child_left, NULL), Make_OP_NODE(COS, node->child_left, NULL)));
-    }
-
-    default:
-        fprintf(stderr, "Wrong Syntax\n");
-        return Make_VAR_NODE;
-        break;
-    }
-
-    return Make_VAR_NODE;
 }
 
 size_t CleanNode (Node** node)
@@ -451,56 +465,135 @@ int DeleteSomeNodes(Node** node)
     if((*node)->child_left)  result += DeleteSomeNodes(&((*node)->child_left));
     if((*node)->child_right) result += DeleteSomeNodes(&((*node)->child_right));
 
-    if((*node)->node_type == VAR || (*node)->node_type == NUM) return 0;
-    if((*node)->node_type == OP) (*node) = AnalyzeNode(*node, &result);
+    if((*node)->node_type == t_VAR || (*node)->node_type == t_NUM) return 0;
+    if((*node)->node_type == t_OP) (*node) = AnalyzeNode(*node, &result);
 
     return result;
 }
 
-Node* AnalyzeNode (Node* node, int* result)
+Node* AnalyzeNode(Node* node, int* result)
 {
     switch (*(int*)(node->data))
     {
         case MUL:
             {            
-                if ((node->child_left->node_type == NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
+                if ((node->child_left->node_type == t_NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
                 {
                     DeleteTree(node);
                     (*result) += 1;
                     return MAKE_NUM_NODE(0);
                 }
-                if ((node->child_right->node_type == NUM) && fabs(*(double *)(node->child_right->data)) < 0.0001)
+                if ((node->child_right->node_type == t_NUM) && (fabs(*(double *)(node->child_right->data)) < 0.0001 ||  __isnan(*(double *)(node->child_right->data))))
                 {
                     DeleteTree(node);
                     (*result) += 1;
                     return MAKE_NUM_NODE(0);
                 }
-                if ((node->child_left->node_type == NUM) && fabs(*(double*)(node->child_left->data) - 1) < 0.0001)
+                if ((node->child_left->node_type == t_NUM) && fabs(*(double*)(node->child_left->data) - 1) < 0.0001)
                 {
                     Node* new_graph = CopyNode(node->child_right);
                     DeleteTree(node);
                     (*result) += 1;
                     return new_graph;
                 }
-                if ((node->child_right->node_type == NUM) && fabs(*(double *)(node->child_right->data) - 1) < 0.0001)
+                if ((node->child_right->node_type == t_NUM) && fabs(*(double *)(node->child_right->data) - 1) < 0.0001)
                 {
                     Node* new_graph = CopyNode(node->child_left);
                     DeleteTree(node);
                     (*result) += 1;
                     return new_graph;
                 }
+                if (node->child_left->node_type == t_OP && *(int*)(node->child_left->data) == MUL && node->child_right->node_type == t_NUM)
+                {
+                    if (node->child_left->child_left->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_right), MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_left), CopyNode(node->child_right)));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                    if (node->child_left->child_right->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_left), MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_right), CopyNode(node->child_right)));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                }
+                if (node->child_right->node_type == t_OP && *(int*)(node->child_right->data) == MUL && node->child_left->node_type == t_NUM)
+                {
+                    if (node->child_right->child_left->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_right), MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_left), CopyNode(node->child_left)));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                    if (node->child_right->child_right->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_left), MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_right), CopyNode(node->child_left)));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                }
+                if (node->child_left->node_type == t_OP && *(int*)(node->child_left->data) == DIV && node->child_right->node_type == t_NUM)
+                {
+                    if (node->child_left->child_left->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(DIV, MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_left), CopyNode(node->child_right)), CopyNode(node->child_left->child_right));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                    if (node->child_left->child_right->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(DIV, MAKE_OP_NODE(MUL, CopyNode(node->child_left->child_right), CopyNode(node->child_right)), CopyNode(node->child_left->child_left));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                }
+                if (node->child_right->node_type == t_OP && *(int*)(node->child_right->data) == DIV && node->child_left->node_type == t_NUM)
+                {
+                    if (node->child_right->child_left->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(DIV, MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_left), CopyNode(node->child_left)), CopyNode(node->child_right->child_right));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                    if (node->child_right->child_right->node_type == t_NUM)
+                    {
+                        Node* new_graph = MAKE_OP_NODE(DIV, MAKE_OP_NODE(MUL, CopyNode(node->child_right->child_right), CopyNode(node->child_left)), CopyNode(node->child_right->child_left));
+                        DeleteTree(node);
+                        (*result) += 1;
+                        return new_graph;
+                    }
+                }
+                
                 return node;
             }
         case SUM:
             {
-                if ((node->child_left->node_type == NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
+                if (node->child_left->node_type == t_OP && node->child_right->node_type == t_OP &&
+                    *(int*)(node->child_left->data) == LOG && *(int*)(node->child_right->data) == LOG &&
+                    node->child_left->child_left->node_type == t_NUM && node->child_right->child_left->node_type == t_NUM &&
+                    *(double *)(node->child_left->child_left->data) == *(double *)(node->child_right->child_left->data))
+                {
+                    return MAKE_OP_NODE(LOG, MAKE_NUM_NODE(*(double *)(node->child_left->child_left->data)), 
+                           MAKE_OP_NODE(MUL, node->child_left->child_right, node->child_right->child_right));
+                }
+                
+                
+                if ((node->child_left->node_type == t_NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
                 {
                     Node* new_node = CopyNode(node->child_right);
                     DeleteTree(node);
                     (*result) += 1;
                     return new_node;
                 }
-                if ((node->child_right->node_type == NUM) && fabs(*(double*)(node->child_right->data)) < 0.0001)
+                if ((node->child_right->node_type == t_NUM) && fabs(*(double*)(node->child_right->data)) < 0.0001)
                 {
                     Node* new_node = CopyNode(node->child_left);
                     DeleteTree(node);
@@ -511,14 +604,14 @@ Node* AnalyzeNode (Node* node, int* result)
             }
         case SUB:
             {
-                if ((node->child_left->node_type == NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
+                if ((node->child_left->node_type == t_NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
                 {
                     Node* new_node = CopyNode(node->child_right);
                     DeleteTree(node);
                     (*result) += 1;
-                    return Make_OP_NODE(MUL, MAKE_NUM_NODE(-1), new_node);
+                    return MAKE_OP_NODE(MUL, MAKE_NUM_NODE(-1), new_node);
                 }
-                if ((node->child_right->node_type == NUM) && fabs(*(double*)(node->child_right->data)) < 0.0001)
+                if ((node->child_right->node_type == t_NUM) && fabs(*(double*)(node->child_right->data)) < 0.0001)
                 {
                     Node* new_node = CopyNode(node->child_left);
                     DeleteTree(node);
@@ -529,13 +622,13 @@ Node* AnalyzeNode (Node* node, int* result)
             }
         case DIV:
             {   
-                if ((node->child_left->node_type == NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
+                if ((node->child_left->node_type == t_NUM) && fabs(*(double*)(node->child_left->data)) < 0.0001)
                 {
                     DeleteTree(node);
                     (*result) += 1;
                     return MAKE_NUM_NODE(0);
                 }
-                if ((node->child_right->node_type == NUM) && fabs(*(double*)(node->child_right->data) - 1) < 0.0001)
+                if ((node->child_right->node_type == t_NUM) && fabs(*(double*)(node->child_right->data) - 1) < 0.0001)
                 {
                     Node* new_node = CopyNode(node->child_left);
                     DeleteTree(node);
@@ -546,8 +639,8 @@ Node* AnalyzeNode (Node* node, int* result)
             }
         case LOG:
             {
-                if ((node->child_left->node_type == NUM || node->child_left->node_type == VAR) && 
-                    (node->child_right->node_type == NUM || node->child_right->node_type == VAR) &&
+                if ((node->child_left->node_type == t_NUM || node->child_left->node_type == t_VAR) && 
+                    (node->child_right->node_type == t_NUM || node->child_right->node_type == t_VAR) &&
                     fabs(*(double*)(node->child_left->data) - *(double*)(node->child_right->data)) < 0.0001)
                 {
                     DeleteTree(node);
@@ -558,14 +651,14 @@ Node* AnalyzeNode (Node* node, int* result)
             }
         case POW:
             {
-                if (node->child_left->node_type == NUM && fabs(*(double*)(node->child_left->data)-1) < 0.001)
+                if (node->child_left->node_type == t_NUM && fabs(*(double*)(node->child_left->data)-1) < 0.001)
                 {
                     Node* new_graph = MAKE_NUM_NODE(1);
                     DeleteTree(node);
                     *(result) += 1;
                     return new_graph;
                 }
-                if (node->child_right->node_type == NUM && fabs(*(double*)(node->child_right->data)-1) < 0.001)
+                if (node->child_right->node_type == t_NUM && fabs(*(double*)(node->child_right->data)-1) < 0.001)
                 {
                     Node* new_graph = CopyNode(node->child_left);
                     DeleteTree(node);
@@ -580,7 +673,7 @@ Node* AnalyzeNode (Node* node, int* result)
             break;
     }
     return node;
-}   
+}
 
 int MakeTreeSimpler (Node** node)
 {
@@ -589,15 +682,15 @@ int MakeTreeSimpler (Node** node)
     if((*node)->child_left)  result += MakeTreeSimpler(&((*node)->child_left));
     if((*node)->child_right) result += MakeTreeSimpler(&((*node)->child_right));
 
-    if((*node)->node_type == VAR || (*node)->node_type == NUM) return 0;
-    if((*node)->node_type == OP) (*node) = CalcNode(*node, &result);
+    if((*node)->node_type == t_VAR || (*node)->node_type == t_NUM) return 0;
+    if((*node)->node_type == t_OP) (*node) = CalcNode(*node, &result);
 
     return result;
 }
 
 Node* CalcNode (Node* node, int* result)
 {
-    if(node->child_left->node_type == NUM && node->child_right->node_type == NUM) switch (*(int*)(node->data))
+    if(node->child_left->node_type == t_NUM && node->child_right->node_type == t_NUM) switch (*(int*)(node->data))
     {
     case SUM:
         {
@@ -652,4 +745,106 @@ Node* CalcNode (Node* node, int* result)
         break;
     }
     return node;
+}
+
+Node* MakeDiffLatex (Node* node, size_t* nPdf)
+{
+    *(nPdf) = *(nPdf) + 1;
+
+    char TexName[128];
+    sprintf(TexName, "dump/tex/%lu.tex", *nPdf);
+    FILE* newTeX = fopen(TexName, "w");
+    PrintPreamble(newTeX);
+    Node* derivative =LaTeXDiffNode(node, newTeX);
+
+    MAKE_TEX_NODE(derivative, newTeX);
+    fprintf(newTeX, "\n\n Упростим результат и получим:\n\n\n");
+
+    CleanNode(&derivative);
+
+    MAKE_TEX_NODE(derivative, newTeX);
+
+    fprintf(newTeX, "\\end{document}\n");
+    fclose(newTeX);
+
+    char buffer[512] = {'\0'};
+    sprintf(buffer, "pdflatex -output-directory=dump/pdf -jobname=%lu %s \n", *nPdf, TexName);
+
+    system(buffer);
+    system("cd dump/pdf\n rm -rf *.log *.aux *.out\n");
+    return derivative;
+}
+
+
+Node* LaTeXDiffNode (Node* node, FILE* newTeX)
+{
+    
+    if (node->node_type == t_NUM)  return MAKE_NUM_NODE(0);
+    if (node->node_type == t_VAR) return MAKE_NUM_NODE(1);
+    
+    if (node->node_type == t_OP) 
+    {
+        switch (*(int*)(node->data))
+        {
+        case SUM: {
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(SUM, LaTeXDiffNode(node->child_left, newTeX), LaTeXDiffNode(node->child_right, newTeX));
+        }
+        case SUB: {
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(SUB, LaTeXDiffNode(node->child_left, newTeX), LaTeXDiffNode(node->child_right, newTeX));
+        }
+        case MUL: {
+            Node* node_1 = MAKE_OP_NODE(MUL, LaTeXDiffNode(node->child_left, newTeX), CopyNode(node->child_right));
+            Node* node_2 = MAKE_OP_NODE(MUL, CopyNode(node->child_left), LaTeXDiffNode(node->child_right, newTeX));
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(SUM, node_1, node_2);
+        }
+
+        case DIV: {
+            Node* node_1 = MAKE_OP_NODE(MUL, LaTeXDiffNode(node->child_left, newTeX), CopyNode(node->child_right));
+            Node* node_2 = MAKE_OP_NODE(MUL, CopyNode(node->child_left), LaTeXDiffNode(node->child_right, newTeX));
+            Node* node_3 = MAKE_OP_NODE(POW, CopyNode(node->child_right), MAKE_NUM_NODE(2));
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(DIV, MAKE_OP_NODE(SUB, node_1, node_2), node_3);
+        }
+
+        case LOG: {
+            Node* node_1 = MAKE_OP_NODE(MUL, MAKE_OP_NODE(DIV, LaTeXDiffNode(node->child_right, newTeX), CopyNode(node->child_right)), 
+                                             MAKE_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)));
+
+            Node* node_2 = MAKE_OP_NODE(MUL, MAKE_OP_NODE(DIV, LaTeXDiffNode(node->child_left, newTeX), CopyNode(node->child_left)), 
+                                             MAKE_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_right)));
+            Node* node_3 = MAKE_OP_NODE(POW, MAKE_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)), 
+                                             MAKE_NUM_NODE(2));    
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(DIV, MAKE_OP_NODE(SUB, node_1, node_2), node_3);                                
+        }
+
+        case POW: {
+            Node* new_deriv = MAKE_OP_NODE(MUL, CopyNode(node->child_right), MAKE_OP_NODE(LOG, MAKE_NUM_NODE(e), CopyNode(node->child_left)));
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(MUL, CopyNode(node), LaTeXDiffNode(new_deriv, newTeX));
+        }
+
+        case SIN: {
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(MUL, MAKE_OP_NODE(COS, CopyNode(node->child_left), NULL), LaTeXDiffNode(node->child_left, newTeX));
+        }
+
+        case COS: {
+            MAKE_TEX_NODE(node, newTeX);
+            return MAKE_OP_NODE(MUL, MAKE_NUM_NODE(-1),  MAKE_OP_NODE(MUL, MAKE_OP_NODE(SIN, CopyNode(node->child_left), NULL), LaTeXDiffNode(node->child_left, newTeX)));
+        }
+        case TAN: {
+            MAKE_TEX_NODE(node, newTeX);
+            return LaTeXDiffNode(MAKE_OP_NODE(DIV, MAKE_OP_NODE(SIN, node->child_left, NULL), MAKE_OP_NODE(COS, node->child_left, NULL)), newTeX);
+        }
+        default:
+            fprintf(stderr, "Wrong Syntax\n");
+            return Make_VAR_NODE;
+            break;
+        }
+    }
+    return Make_VAR_NODE;
 }

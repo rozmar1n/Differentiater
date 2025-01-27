@@ -25,12 +25,26 @@ Node* GetE(char* s, int* p)
         int op = s[*p];
         (*p)++;
         Node* val_2 = GetT(s, p);
-        if (op == '+')
+        if (isnan(*(double*)(val_1->data)))
         {
-            val_1 = Make_OP_NODE(SUM, val_1, val_2);
+            if (op == '+')
+            {
+                return MAKE_OP_NODE(MUL, MAKE_NUM_NODE(1), val_2);
+            }
+            else
+            {
+                return MAKE_OP_NODE(MUL, MAKE_NUM_NODE(-1), val_2);
+            }
         }
         else
-            val_1 = Make_OP_NODE(SUM, val_1, val_2);
+        {
+            if (op == '+')
+            {
+                val_1 = MAKE_OP_NODE(SUM, val_1, val_2);
+            }
+            else
+                val_1 = MAKE_OP_NODE(SUB, val_1, val_2);
+        }
     }
     return val_1;
 }
@@ -45,10 +59,10 @@ Node* GetT(char* s, int* p)
         Node* val_2 = GetU(s, p);
         if (op == '*')
         {
-            val = Make_OP_NODE(MUL, val, val_2);
+            val = MAKE_OP_NODE(MUL, val, val_2);
         }
         else   
-            val = Make_OP_NODE(DIV, val, val_2); 
+            val = MAKE_OP_NODE(DIV, val, val_2); 
     }
     return val;
 }
@@ -60,7 +74,7 @@ Node* GetU(char* s, int* p)
     {
         (*p)++;
         Node* val_2 = GetL(s, p);
-        val = Make_OP_NODE(POW, val, val_2);
+        val = MAKE_OP_NODE(POW, val, val_2);
     }
     return val;
 }
@@ -75,7 +89,7 @@ Node* GetL(char* s, int* p)
         Node* val_2 = GetE(s, p);
         (*p) +=1;
 
-        return Make_OP_NODE(LOG, val_1, val_2);
+        return MAKE_OP_NODE(LOG, val_1, val_2);
     }
     else if(s[*p] == 's')
     {
@@ -83,7 +97,7 @@ Node* GetL(char* s, int* p)
         Node* val_1 = GetE(s, p);
         (*p) += 1;
 
-        return Make_OP_NODE(SIN, val_1, NULL);
+        return MAKE_OP_NODE(SIN, val_1, NULL);
     }
     else if(s[*p] == 'c')
     {
@@ -91,7 +105,7 @@ Node* GetL(char* s, int* p)
         Node* val_1 = GetE(s, p);
         (*p) += 1;
 
-        return Make_OP_NODE(COS, val_1, NULL);
+        return MAKE_OP_NODE(COS, val_1, NULL);
     }
     else if(s[*p] == 't')
     {
@@ -99,7 +113,7 @@ Node* GetL(char* s, int* p)
         Node* val_1 = GetE(s, p);
         (*p) += 1;
 
-        return Make_OP_NODE(TAN, val_1, NULL);
+        return MAKE_OP_NODE(TAN, val_1, NULL);
     }
     else
     {

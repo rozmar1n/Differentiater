@@ -5,20 +5,20 @@
 #include <cstring>
 #include <cstdbool>
 #include <cstdlib>
-#include <cmath>
+#include <math.h>
 
-#define Make_OP_NODE(op, Node1, Node2)    MakeNode(OP,  CallocInt(op), Node1, Node2)
-#define MAKE_NUM_NODE(double)              MakeNode(NUM, CallocDouble(double), NULL, NULL)
-#define Make_VAR_NODE                      MakeNode(VAR, CallocDouble(0xdeadbeef), NULL, NULL)
+#define MAKE_OP_NODE(op, Node1, Node2)  MakeNode(t_OP,  CallocInt(op), Node1, Node2)
+#define MAKE_NUM_NODE(double)           MakeNode(t_NUM, CallocDouble(double), NULL, NULL)
+#define Make_VAR_NODE                   MakeNode(t_VAR, CallocDouble(0xdeadbeef), NULL, NULL)
 
 const size_t MaxOperationSize = 32;
 const double e                = 2.718281828;
 
 enum NodeTypes
 {
-    OP  = 1,
-    NUM = 2,
-    VAR = 3
+    t_OP  = 1,
+    t_NUM = 2,
+    t_VAR = 3
 };
 
 enum Operations 
@@ -52,10 +52,12 @@ void  TreeDump          (Node* Tree_root, size_t* nPic);
 void  MakeEdgeToChildren(Node* node, FILE* newGraph);
 void  MakeGraphExprNode (Node* node, FILE* newGraph);
 
-void MakeLaTeXTree      (Node* Tree_root, size_t* nPdf);
-void PrintPreamble      (FILE* newTeX);
-void PrintfNodeToTeX    (Node* node, FILE* newTeX);
-void TypeOperationNode  (Node* node, FILE* newTeX);
+void  MakeLaTeXTree      (Node* Tree_root, size_t* nPdf);
+void  PrintPreamble      (FILE* newTeX);
+void  PrintfNodeToTeX    (Node* node, FILE* newTeX);
+void  TypeOperationNode  (Node* node, FILE* newTeX);
+Node* MakeDiffLatex      (Node* node, size_t* nPdf);
+Node* LaTeXDiffNode      (Node* node, FILE* newTeX);
 
 Node* DiffNode          (Node* node);
 Node* CopyNode          (const Node* node);
