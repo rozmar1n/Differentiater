@@ -1,4 +1,7 @@
 #include "../headers/differ.h"
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
 //TODO: заменить дефайн на функцию
 #define MAKE_TEX_NODE(node, newTeX)              \
     if (newTeX) \
@@ -15,6 +18,13 @@
     //TODO: сделать для разных нод разные структуры 
     //TODO: как хранить функции для работы с операторами.. Вместо енама сделать массив 
 
+static void EnsureDirectory(const char* path)
+{
+    if (mkdir(path, 0755) != 0 && errno != EEXIST)
+    {
+        fprintf(stderr, "failed to create directory %s: %s\n", path, strerror(errno));
+    }
+}
 
 
 void* CallocDouble(const double var)
@@ -64,9 +74,18 @@ void  TreeDump(Node* Tree_root, size_t* nPic)
 {
     *(nPic) +=1;
 
+    EnsureDirectory("dump");
+    EnsureDirectory("dump/dotfiles");
+    EnsureDirectory("dump/tree_pictures");
+
     char graphName[128];
     sprintf(graphName, "dump/dotfiles/%lu.dot", *nPic);
     FILE* newGraph = fopen(graphName, "w");
+    if (!newGraph)
+    {
+        fprintf(stderr, "failed to open %s for writing\n", graphName);
+        return;
+    }
     fprintf(newGraph, "digraph G\n\t" "{\n\t");
 
     MakeGraphExprNode(Tree_root, newGraph);
@@ -76,10 +95,10 @@ void  TreeDump(Node* Tree_root, size_t* nPic)
     fclose(newGraph);
 
     char pictureName[128];
-    sprintf(pictureName, "dump/tree_pictures/%lu.png\n", *nPic);
+    sprintf(pictureName, "dump/tree_pictures/%lu.png", *nPic);
 
     char buffer[512] = {'\0'};
-    sprintf(buffer, "dot -Tpng %s -o %s\n", graphName, pictureName);
+    sprintf(buffer, "dot -Tpng %s -o %s", graphName, pictureName);
 
     system(buffer);
 }
@@ -151,9 +170,18 @@ void MakeLaTeXTree (Node* Tree_root, size_t* nPdf)
 {
     *(nPdf) = *(nPdf) + 1;
 
+    EnsureDirectory("dump");
+    EnsureDirectory("dump/tex");
+    EnsureDirectory("dump/pdf");
+
     char TexName[128];
     sprintf(TexName, "dump/tex/%lu.tex", *nPdf);
     FILE* newTeX = fopen(TexName, "w");
+    if (!newTeX)
+    {
+        fprintf(stderr, "failed to open %s for writing\n", TexName);
+        return;
+    }
     PrintPreamble(newTeX);
     
     
@@ -162,7 +190,7 @@ void MakeLaTeXTree (Node* Tree_root, size_t* nPdf)
     fprintf(newTeX, "\\end{document}\n");
     fclose(newTeX);
     char buffer[512] = {'\0'};
-    sprintf(buffer, "pdflatex -output-directory=dump/pdf -jobname=%lu %s \n", *nPdf, TexName);
+    sprintf(buffer, "pdflatex -output-directory=dump/pdf -jobname=%lu %s", *nPdf, TexName);
 
     system(buffer);
     system("cd dump/pdf\n rm -rf *.log *.aux *.out\n");
@@ -751,9 +779,18 @@ Node* MakeDiffLatex (Node* node, size_t* nPdf)
 {
     *(nPdf) = *(nPdf) + 1;
 
+    EnsureDirectory("dump");
+    EnsureDirectory("dump/tex");
+    EnsureDirectory("dump/pdf");
+
     char TexName[128];
     sprintf(TexName, "dump/tex/%lu.tex", *nPdf);
     FILE* newTeX = fopen(TexName, "w");
+    if (!newTeX)
+    {
+        fprintf(stderr, "failed to open %s for writing\n", TexName);
+        return NULL;
+    }
     PrintPreamble(newTeX);
     Node* derivative =LaTeXDiffNode(node, newTeX);
 
@@ -768,7 +805,7 @@ Node* MakeDiffLatex (Node* node, size_t* nPdf)
     fclose(newTeX);
 
     char buffer[512] = {'\0'};
-    sprintf(buffer, "pdflatex -output-directory=dump/pdf -jobname=%lu %s \n", *nPdf, TexName);
+    sprintf(buffer, "pdflatex -output-directory=dump/pdf -jobname=%lu %s", *nPdf, TexName);
 
     system(buffer);
     system("cd dump/pdf\n rm -rf *.log *.aux *.out\n");
